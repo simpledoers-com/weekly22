@@ -1,5 +1,10 @@
-# weekly21
-Typescript - React - Redux Learning
+# weekly22
+
+## Typescript - UI - React - Redux Learning
+
+## Typescript - API - OpenAPI Swagger Auth - environment
+
+## Typescript - API -> DB - Mongoose MongoDB TDD inmemorydb
 
 ```
 npm i io-ts fp-ts
@@ -10,7 +15,6 @@ npm i io-ts fp-ts
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Users } from './Users';
-
 test('renders Users', () => {
     const users =  [
         {id: 3, name: 'Maximiliano', email: 'maximilianou@gmail.com', website: 'https://github.com/maximilianou', 
@@ -19,10 +23,6 @@ test('renders Users', () => {
         address: { street: '', suite: '', city: '', geo: { lat: '3', lng: '4'}}},
         {id: 7, name: 'Julian', email: 'juu@gmail.com', website: 'https://github.com/julian', 
         address: { street: '', suite: '', city: '', geo: { lat: '1', lng: '2'}}},
-//        {id: '13', name: 'Julian', email: 'juu@gmail.com', website: 'https://github.com/julian', 
-//        address: { street: '', suite: '', city: '', geo: { lat: 33, lng: 44}}},
-//        {id: 15, name: 'Julian', email: 'juu@gmail.com', website: 'https://github.com/julian', 
-//        address: { street: '', suite: '', city: '', geo: { lat: 33, lng: 44}}},
     ]; 
     render(<Users users={users} />);
     const elemMax = screen.getAllByText(/Maximiliano/g);
@@ -32,14 +32,12 @@ test('renders Users', () => {
     const elemJul = screen.getAllByText(/Julian/g);
     expect(elemJul[0]).toBeInTheDocument();
 });
-
 ```
 
 ```tsx
 // Users.tsx
 import { isRight } from 'fp-ts/lib/Either';
 import * as t from 'io-ts';
-
 const Address = t.type({
     street: t.string,
     suite: t.string,
@@ -49,7 +47,6 @@ const Address = t.type({
         lng: t.string
     }),
 })
-
 const User = t.type({
   id: t.number,
   name: t.string,
@@ -57,7 +54,6 @@ const User = t.type({
   website: t.string,
   address : Address,
 })
-
 type AddressType = {
     street: string,
     suite: string,
@@ -67,7 +63,6 @@ type AddressType = {
         lng: string
     }
 }
-
 type UserType = {
     id: number,
     name: string,
@@ -75,11 +70,9 @@ type UserType = {
     website: string,
     address: AddressType
 }
-
 type UsersProps = {
     users: UserType[]
 }
-
 export const Users: React.FC<UsersProps> = ( { users } ) => (
         <>
           <ul>
@@ -91,7 +84,6 @@ export const Users: React.FC<UsersProps> = ( { users } ) => (
           </ul>
         </>
 )
-
 ```
 
  - Create API project structure
@@ -128,14 +120,12 @@ package.json
   "devDependencies": {
     "ts-node": "^9.1.1"
   }
-
 ```
 
 ```ts
 //server.ts
 import express from 'express'
 import {Express} from 'express-serve-static-core'
-
 export async function createServer(): Promise<Express> {
   const server = express()
   server.get('/', (req, res) => {
@@ -148,7 +138,6 @@ export async function createServer(): Promise<Express> {
 ```ts
 //app.ts
 import {createServer} from './utils/server'
-
 createServer()
   .then(server => {
     server.listen(3000, () => {
@@ -258,27 +247,20 @@ import * as OpenApiValidator  from 'express-openapi-validator';
 import { connector, summarise} from 'swagger-routes-express';
 import YAML from 'yamljs';
 import swaggerUi from 'swagger-ui-express';
-
 import * as api from '../api/controllers/greeting';
-
 export async function createServer(): Promise<Express> {
   const yamlSpecFile = './config/openapi.yml';
   const apiDefinition = YAML.load(yamlSpecFile);
   const apiSummary = summarise(apiDefinition);
-
-  const server = express();
-  
+  const server = express();  
   server.use('/api-docs', swaggerUi.serve, swaggerUi.setup(apiDefinition));
-  
   const validatorOprions = {
     coerceType: true,
     apiSpec: yamlSpecFile,
     validateRequests: true,
     validateResponses: true
   }
-
   server.use(OpenApiValidator.middleware(validatorOprions));
-
   server.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     res.status(err.status).json({
       error: {
@@ -288,17 +270,14 @@ export async function createServer(): Promise<Express> {
       }
     });
   });
-
   const connect = connector(api, apiDefinition, {
     onCreateRoute: (method: string, descriptor: any[]) => {
       console.log(`${method}: ${descriptor[0]} : ${(descriptor[1] as any).name}`);
     }
   });
   connect(server);
-
   return server;
 }
-
 ```
 
 ```
@@ -313,12 +292,12 @@ curl http://localhost:3021/api/v1/hello?name=Max
 
 
 ```sh
-maximilianou@instrument:~/projects/weekly21$ cd api/
-maximilianou@instrument:~/projects/weekly21/api$ mkdir -p src/api/services
-maximilianou@instrument:~/projects/weekly21/api$ touch src/api/services/user.ts
-maximilianou@instrument:~/projects/weekly21/api$ touch src/api/controllers/user.ts
-maximilianou@instrument:~/projects/weekly21/api$ mkdir -p src/api/utils
-maximilianou@instrument:~/projects/weekly21/api$ touch src/api/utils/express.ts
+maximilianou@instrument:~/projects/weekly22$ cd api/
+maximilianou@instrument:~/projects/weekly22/api$ mkdir -p src/api/services
+maximilianou@instrument:~/projects/weekly22/api$ touch src/api/services/user.ts
+maximilianou@instrument:~/projects/weekly22/api$ touch src/api/controllers/user.ts
+maximilianou@instrument:~/projects/weekly22/api$ mkdir -p src/api/utils
+maximilianou@instrument:~/projects/weekly22/api$ touch src/api/utils/express.ts
 
 ```
 
@@ -723,7 +702,7 @@ describe('auth failure', () => {
 });
 ```
 
-
+...https://losikov.medium.com/part-5-mongodb-with-mongoose-d01144739002
 ### Mongo, mongoose, bcrypt
 ```
 npm i mongoose bcrypt mongodb-memory-server
@@ -742,7 +721,8 @@ LOGGER_LEVEL=
 MONGO_URL=
 MONGO_CREATE_INDEX=
 MONGO_AUTO_INDEX=
-
+```
+```
 maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.dev
 MORGAN_LOGGER=true
 MORGAN_BODY_LOGGER=true
@@ -750,13 +730,15 @@ EXMPL_DEV_LOGGER=true
 LOGGER_LEVEL=debug
 MONGO_URL=mongodb://localhost/exmpl
 MONGO_AUTO_INDEX=true
-
+```
+```
 maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.prod
 MORGAN_LOGGER=true
 LOGGER_LEVEL=http
 MONGO_URL=mongodb://localhost/exmpl
 MONGO_AUTO_INDEX=false
-
+```
+```
 maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.test 
 MONGO_URL=inmemory
 MONGO_AUTO_INDEX=true
