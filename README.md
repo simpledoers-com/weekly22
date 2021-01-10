@@ -724,6 +724,176 @@ describe('auth failure', () => {
 ```
 
 
+### Mongo, mongoose, bcrypt
+```
+npm i mongoose bcrypt mongodb-memory-server
+npm i -D @types/mongoose @types/bcrypt @types/mongodb-memory-server 
+npm i -D faker @types/faker
+
+```
+
+```
+maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.schema 
+MORGAN_LOGGER=
+MORGAN_BODY_LOGGER=
+EXMPL_DEV_LOGGER=
+# see src/utils/logger.ts for the list of values
+LOGGER_LEVEL=
+MONGO_URL=
+MONGO_CREATE_INDEX=
+MONGO_AUTO_INDEX=
+
+maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.dev
+MORGAN_LOGGER=true
+MORGAN_BODY_LOGGER=true
+EXMPL_DEV_LOGGER=true
+LOGGER_LEVEL=debug
+MONGO_URL=mongodb://localhost/exmpl
+MONGO_AUTO_INDEX=true
+
+maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.prod
+MORGAN_LOGGER=true
+LOGGER_LEVEL=http
+MONGO_URL=mongodb://localhost/exmpl
+MONGO_AUTO_INDEX=false
+
+maximilianou@instrument:~/projects/weekly22$ cat api/config/.env.test 
+MONGO_URL=inmemory
+MONGO_AUTO_INDEX=true
+
+```
+
+```ts
+// src/config/index.ts
+import dotenvExtended from 'dotenv-extended';
+import dotenvParseVariables from 'dotenv-parse-variables';
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+const env = dotenvExtended.load({
+  path: process.env.ENV_FILE,
+  defaults: './config/.env.defaults',
+  schema: './config/.env.schema',
+  includeProcessEnv: true,
+  silent: false,
+  errorOnMissing: true,
+  errorOnExtra: true
+});
+const parsedEnv = dotenvParseVariables(env);
+interface Config {
+  morganLogger: boolean,
+  morganBodyLogger: boolean,
+  exmplDevLogger: boolean,
+  loggerLevel: LogLevel, 
+  mongo: {
+    url: string,
+    useCreateIndex: boolean,
+    autoIndex: boolean,
+  },
+};
+const config : Config = {
+  morganLogger: parsedEnv.MORGAN_LOGGER as boolean,
+  morganBodyLogger: parsedEnv.MORGAN_BODY_LOGGER as boolean,
+  exmplDevLogger: parsedEnv.EXMPL_DEV_LOGGER as boolean,
+  loggerLevel: parsedEnv.LOGGER_LEVEL as LogLevel,
+  mongo: {
+    url: parsedEnv.MONGO_URL as string,
+    useCreateIndex: parsedEnv.MONGO_CREATE_INDEX as boolean,
+    autoIndex: parsedEnv.MONGO_AUTO_INDEX as boolean,
+  },
+};
+export default config;
+```
+
+```ts
+// src/utils/db.ts
+/* istanbul ignore file */
+import mongoose from 'mongoose';
+import {MongoMemoryServer} from 'mongodb-memory-server';
+import config from '@exmpl/config';
+import logger from '@exmpl/utils/logger';
+mongoose.Promise = global.Promise;
+mongoose.set('debug', process.env.DEBUG !== undefined);
+const opts = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useCreateIndex: config.mongo.useCreateIndex,
+  keepAlive: true,
+  keepAliveInitialDelay: 300000,
+  autoIndex: config.mongo.autoIndex,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+class MongoConnection {
+  private static _instance: MongoConnection;
+  private _mongoServer?: MongoMemoryServer;
+  static getInstance(): MongoConnection {
+    if(!MongoConnection._instance){
+      MongoConnection._instance = new MongoConnection();
+    }
+    return MongoConnection._instance;
+  };
+  public async open(): Promise<void> {
+    try{ 
+      if(config.mongo.url === 'inmemory'){
+        logger.debug('connecting to inmemory mongodb');
+        this._mongoServer = new MongoMemoryServer();
+        const mongoUrl = await this._mongoServer.getConnectionString();
+        await mongoose.connect(mongoUrl, opts);
+      }else{
+        logger.debut(`connecting to mongodb: ${config.mongo.url}`);
+        mongoose.connect(config.mongo.url, opts);
+      }
+      mongoose.connection.on('connected', () => {
+        logger.info('Mongo: connected.);
+      });
+      mongoose.connection('disconnected', () => {
+        logger.info('Mongo: disconnected.);
+      });
+      mongoose.connection.on('error', (err) => {
+        logger.error(`Mongo: ${String(err)}`);
+        if(err.name === "MongoNetworkError"){
+          setTimeout( () => {
+            mongoose.connect(config.mongo.url, opts).catch(() => {}); 
+          }, 5000);
+        }
+      });
+    }catch(err){
+      logger.error(`db.open: ${err}`);
+      throw err;
+    }
+  }
+  public async close(): Promise<void> {
+    try{ 
+      await mongoose.disconnect();
+      if(config.mongo.url === 'inmemory'){
+        await this._mongoServer!.stop();
+      }
+    }catch(err){
+      logger.error(`db.open: ${err}`); 
+      throw err;
+    }
+  }
+};
+export default MongoConnection.getInstance();
+```
+
+```ts
+// src/app.ts
+import logger from '@exmpl/utils/logger';
+import {createServer} from '@exmpl/utils/server';
+import db from '@exmpl/utils/db';
+db.open()
+  .then( () =>  
+    createServer() )
+  .then( (server: { listen: (arg0: number, arg1: () => void) => void; }) => {
+      server.listen( 3021, () => {
+          logger.info(`Listening on port: ${3021}`);
+      })
+  })
+  .catch( (err: any) => {
+      logger.error(`Error:: ${err}`);
+  });
+```
+
 
 Reference:
 
