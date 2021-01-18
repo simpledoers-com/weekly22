@@ -5,8 +5,11 @@ import {MongoMemoryServer} from 'mongodb-memory-server';
 
 import config from '@exmpl/config';
 import logger from '@exmpl/utils/logger';
-
-mongoose.Promise = global.Promise;
+//mongoose.Promise = global.Promise;
+(<any>mongoose).Promise = global.Promise;
+//type MongooseType = typeof mongoose;
+//(mongoose as MongooseType).Promise = global.Promise;
+//(<MongooseType>mongoose).Promise = global.Promise;
 mongoose.set('debug', process.env.DEBUG !== undefined);
 
 const opts = {
@@ -37,17 +40,17 @@ class MongoConnection {
       if(config.mongo.url === 'inmemory'){
         logger.debug('connecting to inmemory mongodb');
         this._mongoServer = new MongoMemoryServer();
-        const mongoUrl = await this._mongoServer.getConnectionString();
+        const mongoUrl = await this._mongoServer.getUri();
         await mongoose.connect(mongoUrl, opts);
       }else{
-        logger.debut(`connecting to mongodb: ${config.mongo.url}`);
+        logger.debug(`connecting to mongodb: ${config.mongo.url}`);
         mongoose.connect(config.mongo.url, opts);
       }
       mongoose.connection.on('connected', () => {
-        logger.info('Mongo: connected.);
+        logger.info('Mongo: connected.')
       });
-      mongoose.connection('disconnected', () => {
-        logger.info('Mongo: disconnected.);
+      mongoose.connection.on('disconnected', () => {
+        logger.info('Mongo: disconnected.')
       });
       mongoose.connection.on('error', (err) => {
         logger.error(`Mongo: ${String(err)}`);
